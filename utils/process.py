@@ -19,28 +19,29 @@ def crop_image(top, left, patch_size, img=None):
     return tmp_img
 
 
-def five_point_crop(idx, d_img, config):
-    new_h = config.crop_size
-    new_w = config.crop_size
+def five_point_crop(idx, d_img, crop_size):
+    '''
+    截取图像左上、右上、左下、右下、中间的区域
+    '''
     b, c, h, w = d_img.shape
     if idx == 0:
         top = 0
         left = 0
     elif idx == 1:
         top = 0
-        left = w - new_w
+        left = w - crop_size
     elif idx == 2:
-        top = h - new_h
+        top = h - crop_size
         left = 0
     elif idx == 3:
-        top = h - new_h
-        left = w - new_w
+        top = h - crop_size
+        left = w - crop_size
     elif idx == 4:
         center_h = h // 2
         center_w = w // 2
-        top = center_h - new_h // 2
-        left = center_w - new_w // 2
-    d_img_org = crop_image(top, left, config.crop_size, img=d_img)
+        top = center_h - crop_size // 2
+        left = center_w - crop_size // 2
+    d_img_org = crop_image(top, left, crop_size, img=d_img)
 
     return d_img_org
 
@@ -120,9 +121,9 @@ def split_dataset_csiq(txt_file_name, split_seed=20):
 
 
 class RandResizeCrop(object):
-    def __init__(self, crop_size=224):
+    def __init__(self, crop_size=224, mode='train'):
         self.crop_size = crop_size
-        
+        self.mode = mode
     def __call__(self, sample):
         d_img = sample['d_img_org'] # (H,W,C) (numpy)
         score = sample['score']
@@ -157,7 +158,12 @@ class RandResizeCrop(object):
         new_img = cv2.resize(d_img,(new_w,new_h))
         top = np.random.randint(0, new_h - self.crop_size)
         left = np.random.randint(0, new_w - self.crop_size)
-        ret_d_img = new_img[top: top + self.crop_size, left: left + self.crop_size,:]
+        if self.mode == 'train':
+            ret_d_img = new_img[top: top + self.crop_size, left: left + self.crop_size,:]
+        elif self.mode == 'eval':
+            ret_d_img = new_img
+        else:
+            raise Exception(f'输入mode不正确!')
 
         sample = {
             'd_img_org': ret_d_img, # (crop_h,crop_w,C) (numpy)

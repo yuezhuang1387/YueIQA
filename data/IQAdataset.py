@@ -1,4 +1,5 @@
-from torch.utils.data import Dataset, DataLoader, Subset
+import sys
+sys.path.append('./')
 from utils.process import RandResizeCrop, ToTensor, RandHorizontalFlip, Normalize, five_point_crop
 import os
 import torch
@@ -59,7 +60,7 @@ class IQAdataset(torch.utils.data.Dataset):
         return sample
 
 if __name__ == '__main__':
-    a = IQAdataset('G:\Turingdataset\IQA_Train_22_5_6_img_noChi', 'G:\图灵深视\MANIQA\data\IQAtrain_noChi.txt',
+    a = IQAdataset('/mnt/yue/Turingdataset/IQA_Train_22_5_6_img_noChi', '/mnt/yue/YueIQA/data/IQAtrain_noChi.txt',
                 transform=transforms.Compose(
                     [
                         RandResizeCrop(224),

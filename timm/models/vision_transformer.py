@@ -395,16 +395,22 @@ class VisionTransformer(nn.Module):
         else:
             x = torch.cat((cls_token, self.dist_token.expand(x.shape[0], -1, -1), x), dim=1)
         x = self.pos_drop(x + self.pos_embed)
-        x = self.blocks(x)
+        # l保存各个transformer block输出,只存最后4个阶段
+        l = []
+        num_blocks = len(self.blocks)
+        for i,b in enumerate(self.blocks):
+            x = b(x)
+            if i>(num_blocks-5):
+                l.append(x)
         x = self.norm(x)
         # if self.dist_token is None:
         #     return self.pre_logits(x[:, 0])
         # else:
         #     return x[:, 0], x[:, 1]
-        return x
+        return x,l
 
     def forward(self, x):
-        x = self.forward_features(x)
+        x,l = self.forward_features(x)
         # if self.head_dist is not None:
         #     x, x_dist = self.head(x[0]), self.head_dist(x[1])  # x must be a tuple
         #     if self.training and not torch.jit.is_scripting():
@@ -414,7 +420,7 @@ class VisionTransformer(nn.Module):
         #         return (x + x_dist) / 2
         # else:
         #     x = self.head(x)
-        return x[:, 1:]
+        return x[:, 1:],l
 
 
 def _init_vit_weights(module: nn.Module, name: str = '', head_bias: float = 0., jax_impl: bool = False):

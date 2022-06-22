@@ -114,7 +114,7 @@ def eval_epoch(config, epoch, net, criterion, test_loader):
         return np.mean(losses), rho_s, rho_p
 
 # 设置准备使用的GPU编号
-os.environ['CUDA_VISIBLE_DEVICES'] = '0,1'
+os.environ['CUDA_VISIBLE_DEVICES'] = '3,2,1,0'
 
 if __name__ == '__main__':
     # cpu_num = 1
@@ -132,13 +132,13 @@ if __name__ == '__main__':
         # dataset path
         "db_name": "IQA",
         "train_dis_path": "/mnt/yue/Turingdataset/IQA_Train_22_5_6_img_noChi",
-        "val_dis_path": "/mnt/yue/Turingdataset/IQA_Train_22_5_6_img_noChi",
-        "train_txt_file_name": "/mnt/yue/YueIQA/data/IQAtrain_noChi.txt",
-        "val_txt_file_name": "/mnt/yue/YueIQA/data/IQAtest_noChi.txt",
+        # "val_dis_path": "/mnt/yue/Turingdataset/IQA_Train_22_5_6_img_noChi",
+        "train_txt_file_name": "/mnt/yue/YueIQA/data/IQAtrain_noChi_5866.txt",
+        # "val_txt_file_name": "/mnt/yue/YueIQA/data/IQAtest_noChi.txt",
 
         # optimization
-        "batch_size": 8, # 原始：8
-        "learning_rate": 1e-5,
+        "batch_size": 32, # 原始：8
+        "learning_rate": 0.5e-5, # 原始：1e-5
         "weight_decay": 1e-5,
         "n_epoch": 300, # 原始：300
         "val_freq": 1,
@@ -146,7 +146,7 @@ if __name__ == '__main__':
         "eta_min": 0,
         "num_avg_val": 5,
         "crop_size": 224,
-        "num_workers": 8,
+        "num_workers": 32, # 原始：8
 
         # model
         "patch_size": 8,
@@ -162,11 +162,11 @@ if __name__ == '__main__':
         
         # load & save checkpoint
         "model_name": "model_maniqa",
-        "output_path": "./output",
-        "snap_path": "./output/models/",               # directory for saving checkpoint
-        "log_path": "./output/log/maniqa/",
+        "output_path": "./output_distributed_5866",
+        "snap_path": "./output_distributed_5866/models/",               # directory for saving checkpoint
+        "log_path": "./output_distributed_5866/log/maniqa/",
         "log_file": ".txt",
-        "tensorboard_path": "./output/tensorboard/"
+        "tensorboard_path": "./output_distributed_5866/tensorboard/"
     })
 
     if not os.path.exists(config.output_path):
@@ -201,20 +201,20 @@ if __name__ == '__main__':
             ]
         ),
     )
-    val_dataset = IQAdataset(
-        img_path=config.val_dis_path,
-        txt_file_name=config.val_txt_file_name,
-        transform=transforms.Compose(
-            [
-                RandResizeCrop(config.crop_size,mode='eval'), # 测试图像同样需要进行一个缩放，但此处不用crop
-                Normalize(0.5, 0.5),
-                ToTensor()
-            ]
-        ),
-    )
+    # val_dataset = IQAdataset(
+    #     img_path=config.val_dis_path,
+    #     txt_file_name=config.val_txt_file_name,
+    #     transform=transforms.Compose(
+    #         [
+    #             RandResizeCrop(config.crop_size,mode='eval'), # 测试图像同样需要进行一个缩放，但此处不用crop
+    #             Normalize(0.5, 0.5),
+    #             ToTensor()
+    #         ]
+    #     ),
+    # )
 
     logging.info('number of train scenes: {}'.format(len(train_dataset)))
-    logging.info('number of val scenes: {}'.format(len(val_dataset)))
+    # logging.info('number of val scenes: {}'.format(len(val_dataset)))
 
     train_loader = DataLoader(
         dataset=train_dataset,
@@ -223,13 +223,13 @@ if __name__ == '__main__':
         drop_last=True,
         shuffle=True
     )
-    val_loader = DataLoader(
-        dataset=val_dataset,
-        batch_size=1,
-        num_workers=config.num_workers,
-        drop_last=True,
-        shuffle=False
-    )
+    # val_loader = DataLoader(
+    #     dataset=val_dataset,
+    #     batch_size=1,
+    #     num_workers=config.num_workers,
+    #     drop_last=True,
+    #     shuffle=False
+    # )
     net = MANIQA(
         embed_dim=config.embed_dim,
         num_outputs=config.num_outputs,
@@ -242,7 +242,8 @@ if __name__ == '__main__':
         num_tab=config.num_tab,
         scale=config.scale
     )
-    net = nn.DataParallel(net)
+    # net = nn.DataParallel(net)
+    net = nn.DataParallel(net,device_ids=[0,1,2,3],output_device=0)
     net = net.cuda()
 
     # loss function
@@ -260,31 +261,27 @@ if __name__ == '__main__':
         os.mkdir(config.snap_path)
 
     # train & validation
-    losses, scores = [], []
     best_srocc = 0
     best_plcc = 0
     for epoch in range(0, config.n_epoch):
         start_time = time.time()
         logging.info('Running training epoch {}'.format(epoch + 1))
-        loss_val, rho_s, rho_p = train_epoch(epoch, net, criterion, optimizer, scheduler, train_loader)
+        loss_train, rho_s, rho_p = train_epoch(epoch, net, criterion, optimizer, scheduler, train_loader)
         # break
-        writer.add_scalar("Train_loss", loss_val, epoch)
+        writer.add_scalar("Train_loss", loss_train, epoch)
         writer.add_scalar("SRCC", rho_s, epoch)
         writer.add_scalar("PLCC", rho_p, epoch)
 
-        if (epoch + 1) % config.val_freq == 0:
-            logging.info('Starting eval...')
-            logging.info('Running testing in epoch {}'.format(epoch + 1))
-            loss, rho_s, rho_p = eval_epoch(config, epoch, net, criterion, val_loader)
-            logging.info('Eval done...')
-
-            if rho_s > best_srocc or rho_p > best_plcc:
-                best_srocc = rho_s
-                best_plcc = rho_p
-                # save weights
-                model_name = "epoch{}".format(epoch + 1)+'.pth'
-                model_save_path = os.path.join(config.snap_path, model_name)
-                torch.save(net.state_dict(), model_save_path)
-                logging.info('Saving weights and model of epoch{}, SRCC:{}, PLCC:{}'.format(epoch + 1, best_srocc, best_plcc))
-        
+        net.eval()
+        # 此处去掉验证集，将全部数据用于训练，保存精度最高的模型
+        if rho_s>best_srocc or rho_p>best_plcc:
+            best_srocc = rho_s
+            best_plcc = rho_p
+            # save weights
+            model_name = "epoch{}".format(epoch + 1)+'.pth'
+            model_save_path = os.path.join(config.snap_path, model_name)
+            torch.save(net.state_dict(), model_save_path)
+            logging.info('Saving weights and model of epoch{}, SRCC:{}, PLCC:{}'.format(epoch + 1, best_srocc, best_plcc))
+        # 默认保存最新的模型
+        torch.save(net.state_dict(), os.path.join(config.snap_path, 'new.pth'))
         logging.info('Epoch {} done. Time: {:.2}min'.format(epoch + 1, (time.time() - start_time) / 60))
