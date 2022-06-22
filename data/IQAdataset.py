@@ -1,6 +1,14 @@
+'''
+Author: error: git config user.name && git config user.email & please set dead value or install git
+Date: 2022-06-22 14:36:17
+LastEditors: error: git config user.name && git config user.email & please set dead value or install git
+LastEditTime: 2022-06-22 16:42:32
+FilePath: /mnt/yue/YueIQA/data/IQAdataset.py
+Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
+'''
 import sys
 sys.path.append('./')
-from utils.process import RandResizeCrop, ToTensor, RandHorizontalFlip, Normalize, five_point_crop
+from utils.process import ColorJitter, RandResizeCrop, ToTensor, RandHorizontalFlip, Myrotate
 import os
 import torch
 import numpy as np
@@ -46,10 +54,8 @@ class IQAdataset(torch.utils.data.Dataset):
 
     def __getitem__(self, idx):
         d_img_name = self.data_dict['d_img_list'][idx]
-        d_img = cv2.imread(os.path.join(self.img_path, d_img_name), cv2.IMREAD_COLOR)
+        d_img = cv2.imread(os.path.join(self.img_path, d_img_name), cv2.IMREAD_COLOR) # (H,W,C) unit8类型
         d_img = cv2.cvtColor(d_img, cv2.COLOR_BGR2RGB)
-        d_img = np.array(d_img).astype('float32') / 255
-
         score = self.data_dict['score_list'][idx]
         sample = {
             'd_img_org': d_img,
@@ -63,10 +69,11 @@ if __name__ == '__main__':
     a = IQAdataset('/mnt/yue/Turingdataset/IQA_Train_22_5_6_img_noChi', '/mnt/yue/YueIQA/data/IQAtrain_noChi.txt',
                 transform=transforms.Compose(
                     [
+                        ColorJitter(brightness=0.4,contrast=0.4,saturation=0.4),
                         RandResizeCrop(224),
-                        Normalize(0.5, 0.5),
                         RandHorizontalFlip(),
-                        ToTensor()
+                        ToTensor(0.5,0.5),
+                        Myrotate(angle=180,p=1)
                     ]
                 ))
     from tqdm import tqdm

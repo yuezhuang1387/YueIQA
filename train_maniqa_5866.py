@@ -10,7 +10,7 @@ from torchvision import transforms
 from torch.utils.data import DataLoader
 from models.maniqa import MANIQA
 from config import Config
-from utils.process import RandResizeCrop, ToTensor, RandHorizontalFlip, Normalize, five_point_crop
+from utils.process import RandResizeCrop, ToTensor, RandHorizontalFlip, five_point_crop, Myrotate, ColorJitter
 from scipy.stats import spearmanr, pearsonr
 from data.IQAdataset import IQAdataset
 from torch.utils.tensorboard import SummaryWriter 
@@ -114,7 +114,7 @@ def eval_epoch(config, epoch, net, criterion, test_loader):
         return np.mean(losses), rho_s, rho_p
 
 # 设置准备使用的GPU编号
-os.environ['CUDA_VISIBLE_DEVICES'] = '3,2,1,0'
+os.environ['CUDA_VISIBLE_DEVICES'] = '2,0'
 
 if __name__ == '__main__':
     # cpu_num = 1
@@ -137,8 +137,8 @@ if __name__ == '__main__':
         # "val_txt_file_name": "/mnt/yue/YueIQA/data/IQAtest_noChi.txt",
 
         # optimization
-        "batch_size": 32, # 原始：8
-        "learning_rate": 0.5e-5, # 原始：1e-5
+        "batch_size": 16, # 原始：8
+        "learning_rate": 0.5e-5, # 原始：1e-5,4卡推荐0.5e-5
         "weight_decay": 1e-5,
         "n_epoch": 300, # 原始：300
         "val_freq": 1,
@@ -194,10 +194,11 @@ if __name__ == '__main__':
         txt_file_name=config.train_txt_file_name,
         transform=transforms.Compose(
             [
+                ColorJitter(brightness=0.4,contrast=0.4,saturation=0.4),
                 RandResizeCrop(config.crop_size),
-                Normalize(0.5, 0.5),
                 RandHorizontalFlip(),
-                ToTensor()
+                ToTensor(0.5,0.5),
+                Myrotate(angle=180,p=1)
             ]
         ),
     )
@@ -243,7 +244,7 @@ if __name__ == '__main__':
         scale=config.scale
     )
     # net = nn.DataParallel(net)
-    net = nn.DataParallel(net,device_ids=[0,1,2,3],output_device=0)
+    net = nn.DataParallel(net,device_ids=[0,1],output_device=0)
     net = net.cuda()
 
     # loss function
