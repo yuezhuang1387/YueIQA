@@ -8,7 +8,7 @@ import random
 
 from torchvision import transforms
 from torch.utils.data import DataLoader
-from models.maniqa import MANIQA
+from models.maniqa import MANIQA,getMANIQA_vit_small_patch8_224_dino
 from config import Config
 from utils.process import RandResizeCrop, ToTensor, RandHorizontalFlip, five_point_crop, Myrotate, ColorJitter
 from scipy.stats import spearmanr, pearsonr

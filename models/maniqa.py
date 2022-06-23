@@ -54,7 +54,7 @@ class SaveOutput:
 
 
 class MANIQA(nn.Module):
-    def __init__(self, embed_dim=72, num_outputs=1, patch_size=8, drop=0.1,
+    def __init__(self, vit_config='vit_base_patch8_224', embed_dim=72, num_outputs=1, patch_size=8, drop=0.1,
                  depths=[2, 2], window_size=4, dim_mlp=768, num_heads=[4, 4],
                  img_size=224, num_tab=2, scale=0.8, **kwargs):
         super().__init__()
@@ -63,7 +63,7 @@ class MANIQA(nn.Module):
         self.input_size = img_size // patch_size
         self.patches_resolution = (img_size // patch_size, img_size // patch_size)
 
-        self.vit = timm.create_model('vit_base_patch8_224', pretrained=True)
+        self.vit = timm.create_model(vit_config, pretrained=True)
         # hook机制在多卡训练时存在问题
         # self.save_output = SaveOutput()
         # hook_handles = []
@@ -163,31 +163,41 @@ class MANIQA(nn.Module):
             score = torch.cat((score, _s.unsqueeze(0)), 0)
         return score
 
-if __name__ == '__main__':
+def getMANIQA_vit_base_patch8_224():
     model = MANIQA(embed_dim=768,
-        num_outputs=1,
-        dim_mlp=768,
-        patch_size=8,
-        img_size=224,
-        window_size=4,
-        depths=[2,2],
-        num_heads=[4,4],
-        num_tab=2,
-        scale=0.13)
-    checkpoint = torch.load('/mnt/yue/YueIQA/output/models/model_maniqa/epoch1.pth',map_location='cpu')
-    from collections import OrderedDict
-    d = OrderedDict()
-    print(type(checkpoint)) # <class 'collections.OrderedDict'>
-    for k,v in checkpoint.items():
-        k_new = k.replace('module.','') # module.vit.cls_token -> vit.cls_token
-        d[k_new] = v
-    model.load_state_dict(d)
-    x = torch.randn(2, 3, 224, 224).cuda()
+                   num_outputs=1,
+                   dim_mlp=768,
+                   patch_size=8,
+                   img_size=224,
+                   window_size=4,
+                   depths=[2, 2],
+                   num_heads=[4, 4],
+                   num_tab=2,
+                   scale=0.13)
+    return model
+
+
+def getMANIQA_vit_small_patch8_224_dino():
+    model = MANIQA(vit_config='vit_small_patch8_224_dino',
+                   embed_dim=384,
+                   num_outputs=1,
+                   dim_mlp=384,
+                   patch_size=8,
+                   img_size=224,
+                   window_size=4,
+                   depths=[2, 2],
+                   num_heads=[4, 4],
+                   num_tab=2,
+                   scale=0.13)
+    return model
+
+if __name__ == '__main__':
+    model = getMANIQA_vit_small_patch8_224_dino()
+    # model.load_state_dict(torch.load('G:\图灵深视\MANIQA\output\models\model_maniqa\cnm.pth', map_location='cpu'))
+    x = torch.randn(1, 3, 224, 224).cuda()
     # FPS(model,224)
     model.cuda()
     model.eval()
-    # torch.save(model.state_dict(),'/mnt/yue/YueIQA/output/models/model_maniqa/cnm.pth')
-    y = model(x) #
+    # torch.save(model.state_dict(),'G:\图灵深视\MANIQA\output\models\model_maniqa\maniqa_vit_small_patch8_224_dino.pth')
+    y = model(x)  #
     print(y.shape) # torch.Size([2])
-    s = torch.squeeze(y)
-    print(s.shape)
