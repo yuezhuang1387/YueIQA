@@ -11,7 +11,7 @@ from models.maniqa import MANIQA
 from tabulate import tabulate
 import cv2
 from torchvision import transforms
-from utils.process import RandResizeCrop,Normalize,ToTensor,five_point_crop
+from utils.process import RandResizeCrop,ToTensor,five_point_crop
 def initModel(modelfile = '/mnt/yue/YueIQA/output/models/model_maniqa/epoch7.pth'):
     model = MANIQA(embed_dim=768,
                    num_outputs=1,
@@ -69,8 +69,8 @@ def predict(net, img_path, threshold = 0.6):
     return score>=threshold, score*100
 
 if __name__ == '__main__':
-    img_root = '/mnt/lcs/data/CUT0608'
-    extra_name = '_MANIQA'
+    img_root = '/mnt/yue/Turingdataset/GUCCI和DIOR图组'
+    extra_name = '_MANIQA_5866_epoch107'
     # extra_name = '_result_no_pretrain' # 原始linearityIQA测得结果
     img_root += extra_name
     # print(os.listdir(img_root))
@@ -81,7 +81,7 @@ if __name__ == '__main__':
     FN = 0
     FP = 0
     TN = 0
-    threshold = 29
+    threshold = 28
 
     heads_list = ['nums_clear', 'nums_unclear', 'acc', 'precision', 'clear_recall', 'unclear_recall']
     for object_name in os.listdir(img_root):

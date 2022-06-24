@@ -9,6 +9,7 @@ import random
 from torchvision import transforms
 from torch.utils.data import DataLoader
 from models.maniqa import MANIQA,getMANIQA_vit_small_patch8_224_dino
+from models.ConvNeXt import convnext_tiny
 from config import Config
 from utils.process import RandResizeCrop, ToTensor, RandHorizontalFlip, five_point_crop, Myrotate, ColorJitter
 from scipy.stats import spearmanr, pearsonr
@@ -114,7 +115,7 @@ def eval_epoch(config, epoch, net, criterion, test_loader):
         return np.mean(losses), rho_s, rho_p
 
 # 设置准备使用的GPU编号
-os.environ['CUDA_VISIBLE_DEVICES'] = '2,0'
+os.environ['CUDA_VISIBLE_DEVICES'] = '3'
 
 if __name__ == '__main__':
     # cpu_num = 1
@@ -137,16 +138,16 @@ if __name__ == '__main__':
         # "val_txt_file_name": "/mnt/yue/YueIQA/data/IQAtest_noChi.txt",
 
         # optimization
-        "batch_size": 16, # 原始：8
-        "learning_rate": 0.5e-5, # 原始：1e-5,4卡推荐0.5e-5
-        "weight_decay": 1e-5,
+        "batch_size": 128, # 原始：8
+        "learning_rate": 1e-5, # 原始：1e-5,MANIQA 4卡推荐0.5e-5
+        "weight_decay": 5e-2, # 原始MANIOA，1e-5
         "n_epoch": 300, # 原始：300
         "val_freq": 1,
         "T_max": 50,
         "eta_min": 0,
         "num_avg_val": 5,
         "crop_size": 224,
-        "num_workers": 32, # 原始：8
+        "num_workers": 8, # 原始：8
 
         # model
         "patch_size": 8,
@@ -162,11 +163,11 @@ if __name__ == '__main__':
         
         # load & save checkpoint
         "model_name": "model_maniqa",
-        "output_path": "./output_distributed_5866",
-        "snap_path": "./output_distributed_5866/models/",               # directory for saving checkpoint
-        "log_path": "./output_distributed_5866/log/maniqa/",
+        "output_path": "./output_ConvNeXt",
+        "snap_path": "./output_ConvNeXt/models/",               # directory for saving checkpoint
+        "log_path": "./output_ConvNeXt/log/maniqa/",
         "log_file": ".txt",
-        "tensorboard_path": "./output_distributed_5866/tensorboard/"
+        "tensorboard_path": "./output_ConvNeXt/tensorboard/"
     })
 
     if not os.path.exists(config.output_path):
@@ -231,20 +232,21 @@ if __name__ == '__main__':
     #     drop_last=True,
     #     shuffle=False
     # )
-    net = MANIQA(
-        embed_dim=config.embed_dim,
-        num_outputs=config.num_outputs,
-        dim_mlp=config.dim_mlp,
-        patch_size=config.patch_size,
-        img_size=config.img_size,
-        window_size=config.window_size,
-        depths=config.depths,
-        num_heads=config.num_heads,
-        num_tab=config.num_tab,
-        scale=config.scale
-    )
+    # net = MANIQA(
+    #     embed_dim=config.embed_dim,
+    #     num_outputs=config.num_outputs,
+    #     dim_mlp=config.dim_mlp,
+    #     patch_size=config.patch_size,
+    #     img_size=config.img_size,
+    #     window_size=config.window_size,
+    #     depths=config.depths,
+    #     num_heads=config.num_heads,
+    #     num_tab=config.num_tab,
+    #     scale=config.scale
+    # )
+    net = convnext_tiny(num_classes=1,pretrained=True)
     # net = nn.DataParallel(net)
-    net = nn.DataParallel(net,device_ids=[0,1],output_device=0)
+    net = nn.DataParallel(net,device_ids=[0],output_device=0)
     net = net.cuda()
 
     # loss function

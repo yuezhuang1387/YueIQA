@@ -13,7 +13,7 @@ from tabulate import tabulate
 import cv2
 from torchvision import transforms
 from utils.process import RandResizeCrop,ToTensor,five_point_crop
-def initModel(modelfile = '/mnt/yue/YueIQA/output_distributed_5866/models/model_maniqa/epoch107.pth'):
+def initModel(modelfile = '/mnt/yue/YueIQA/output_distributed_5866/models/model_maniqa/epoch178.pth'):
     model = MANIQA(embed_dim=768,
                    num_outputs=1,
                    dim_mlp=768,
@@ -72,32 +72,11 @@ def predict(net, img_path, threshold = 0.6):
 os.environ['CUDA_VISIBLE_DEVICES'] = '3'
 
 if __name__ == '__main__':
-    img_root = '/mnt/yue/Turingdataset/GUCCI和DIOR图组'
-    extra_name = '_MANIQA_5866_epoch107'
+    img_root = '/mnt/yue/Turingdataset/IQA_Train_22_5_6_img_noChi/8.jpg'
+    extra_name = '_MANIQA_5866'
     # print(os.listdir(img_root))
     iqa_model = initModel()
     iqa_model = nn.DataParallel(iqa_model)
     iqa_model.cuda()
-    for object_name in os.listdir(img_root):
-        root_list = [osp.join(img_root + '/' + object_name, '模糊'), osp.join(img_root + '/' + object_name, '清晰')]
-        save_list = [osp.join(img_root + extra_name + '/' + object_name, '模糊'),
-                     osp.join(img_root + extra_name + '/' + object_name, '清晰')]
-        print(f'检测类别: {object_name}')
-        for i, path in enumerate(root_list):
-            os.makedirs(save_list[i], exist_ok=True)
-            namelist = os.listdir(path)
-            label = path.split('/')[-1]  #
-            if label == '模糊':
-                label = 0
-            elif label == '清晰':
-                label = 1
-            else:
-                raise Exception('评价数据集文件命名不正确！')
-            for name in tqdm(namelist):  # 当names不为空时
-                if name.lower().endswith(('.png', '.jpg', '.jpeg')):
-                    img_path = osp.join(path, name)
-                    pred, score = predict(iqa_model,img_path=img_path)  # 预测类别，评分
-                    save_path = osp.join(save_list[i],
-                                         'N_' + str(score[0]) + '_' if score < 0 else str(score[0]) + '_' + name)
-                    # print(pred, score)
-                    shutil.copy(img_path, save_path)
+    output = predict(iqa_model,img_path=img_root)
+    print(output)
